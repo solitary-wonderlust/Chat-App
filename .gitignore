@@ -1,0 +1,29 @@
+# Node
+node_modules/
+server/dist/
+*.log
+
+# SQLite data files
+*.db
+*.db-wal
+*.db-shm
+
+# Flutter / Dart
+app/.dart_tool/
+app/build/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.packages
+app/ios/Pods/
+app/ios/.symlinks/
+app/android/.gradle/
+app/android/app/.cxx/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,41 @@
+name: chat_app
+description: Cross-platform chat app with JSONL import/export and offline-first sync.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  # 本地存储（离线优先 + 响应式查询）
+  drift: ^2.20.0
+  drift_flutter: ^0.2.1
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.4
+  path: ^1.9.0
+  # 状态管理
+  flutter_riverpod: ^2.6.1
+  # 网络
+  web_socket_channel: ^3.0.1
+  http: ^1.2.2
+  # 工具
+  uuid: ^4.5.1
+  crypto: ^3.0.5
+  # 导入导出
+  file_picker: ^8.1.2
+  share_plus: ^12.0.2
+  cross_file: ^0.3.4+2
+  # token 持久化
+  shared_preferences: ^2.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  drift_dev: ^2.20.0
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true
