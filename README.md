@@ -62,11 +62,20 @@ dart run build_runner build --delete-conflicting-outputs   # 生成 database.g.d
 flutter run
 ```
 
-- **Android 模拟器**访问宿主机后端，服务器地址填 `http://10.0.2.2:3000`（登录页默认值）。
+- **Android 模拟器**访问宿主机后端，填 `http://10.0.2.2:3000`。
 - **iOS 模拟器**填 `http://localhost:3000`（本项目暂不验证 iOS，需 macOS 环境）。
-- **真机**填电脑的局域网 IP，如 `http://192.168.1.10:3000`（后端需监听 `0.0.0.0`，已默认）。
+- **真机**填电脑的局域网 IP，如 `http://192.168.1.10:3000`（后端需监听 `0.0.0.0`，已默认）。`login_page.dart` 里的默认值是 `http://192.168.1.20:3000`，真机联调时改成自己电脑的 IP。
 
 登录页输入服务器地址 + 用户名 + 密码，点「注册」创建账号，或「登录」已有账号。
+
+### 构建环境说明（中国大陆网络）
+
+`android/` 下已预配置国内镜像与修复，正常无需改动：
+
+- **依赖镜像**：`settings.gradle.kts` / `build.gradle.kts` 加了 aliyun 镜像（google/central/gradle-plugin），`gradle-wrapper.properties` 用腾讯镜像下载 Gradle 发行包。
+- **下载超时**：`gradle.properties` 加了 `connectionTimeout` / `socketTimeout`（20s）。因为 `maven.google.com` 在国内会**静默挂起**（连接能建立、数据收不完），超时能让它快速失败而非无限卡死。
+- **compileSdk 36 覆盖**：`build.gradle.kts` 对所有 Android 子项目强制 `compileSdk = 36`。Flutter 3.47 要求 ≥36，但 `file_picker 8.3.7` 硬编码了 34；AGP 9.1 的 DSL 锁禁止求值后修改，故用 `afterEvaluate`（跳过 `:app`）在求值期覆盖。
+- **模拟器限制**：Android 模拟器需在 BIOS 开启 VT-x 硬件加速，否则只能用真机（USB 调试）。
 
 ## 三、核心流程与验证
 
