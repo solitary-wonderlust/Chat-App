@@ -28,6 +28,25 @@ String deterministicId(
             utf8.encode([conversationId, senderId, content, '$createdAt'].join(_sep)))
         .toString();
 
+// ---- 记录 id 提取（companion 与 preview/skip 共用同一份逻辑） ----
+
+String _conversationId(Map<String, dynamic> r) {
+  final id = r['id'];
+  if (id is String && id.isNotEmpty) return id;
+  return deterministicId('', '', '', 0);
+}
+
+String _messageId(Map<String, dynamic> r) {
+  final id = r['id'];
+  if (id is String && id.isNotEmpty) return id;
+  return deterministicId(
+    (r['conversationId'] ?? '').toString(),
+    (r['senderId'] ?? '').toString(),
+    (r['content'] ?? '').toString(),
+    (r['createdAt'] as num?)?.toInt() ?? 0,
+  );
+}
+
 // ---- 行 -> JSONL 行 ----
 
 String conversationToLine(Conversation c) => jsonEncode({
@@ -57,11 +76,8 @@ ConversationsCompanion conversationCompanion(Map<String, dynamic> r) {
   final participants = (r['participants'] is List)
       ? (r['participants'] as List).map((e) => e.toString()).toList()
       : <String>[];
-  final id = (r['id'] is String && (r['id'] as String).isNotEmpty)
-      ? r['id'] as String
-      : deterministicId('', '', '', 0);
   return ConversationsCompanion.insert(
-    id: id,
+    id: _conversationId(r),
     type: r['type'] == 'group' ? 'group' : 'direct',
     name: Value<String?>(r['name']?.toString()),
     participants: jsonEncode(participants),
@@ -74,15 +90,11 @@ MessagesCompanion messageCompanion(Map<String, dynamic> r) {
   final senderId = (r['senderId'] ?? '').toString();
   final content = (r['content'] ?? '').toString();
   final createdAt = (r['createdAt'] as num?)?.toInt() ?? 0;
-  final id = (r['id'] is String && (r['id'] as String).isNotEmpty)
-      ? r['id'] as String
-      : deterministicId(conversationId, senderId, content, createdAt);
-  final type = _messageType(r['type']);
   return MessagesCompanion.insert(
-    id: id,
+    id: _messageId(r),
     conversationId: conversationId,
     senderId: senderId,
-    type: type,
+    type: _messageType(r['type']),
     content: content,
     createdAt: createdAt,
     editedAt: Value(r['editedAt'] == null ? null : (r['editedAt'] as num).toInt()),
@@ -138,20 +150,154 @@ Future<String> exportJsonl(
 
 typedef ImportResult = ({int conversations, int messages});
 
-/// 导入 JSONL 文本：两遍扫描（conversation 先于 message），悬空引用惰性建占位会话。
-Future<ImportResult> importJsonl(AppDatabase db, String text) async {
+/// 导入时的冲突处理策略。
+enum ImportMode {
+  /// 已存在（id 相同）的记录用新值覆盖（原 upsert 行为）。
+  overwrite,
+
+  /// 已存在的记录跳过不碰，只插入不存在的（纯新增，保证既有记录不被改动）。
+  skipExisting,
+}
+
+/// 导入前预览结果：区分「新增」与「已存在」，并进一步区分「内容不同（会被覆盖）」与「完全相同（无变化）」。
+class ImportPreview {
+  const ImportPreview({
+    required this.newConversations,
+    required this.existingConversations,
+    required this.newMessages,
+    required this.changedMessages,
+    required this.identicalMessages,
+  });
+
+  final int newConversations;
+
+  /// 已存在且 id 相同的会话数（导入时会覆盖或跳过）。
+  final int existingConversations;
+
+  final int newMessages;
+
+  /// 已存在且内容不同的消息数（覆盖模式下真正变更，跳过模式下不动）。
+  final int changedMessages;
+
+  /// 已存在且内容完全一致的消息数（两种模式下都是无操作）。
+  final int identicalMessages;
+
+  /// 若没有新增也没有内容变化，则「导入」实际上无事可做。
+  bool get hasChanges =>
+      newConversations > 0 || newMessages > 0 || changedMessages > 0;
+}
+
+List<Map<String, dynamic>> _parseRecords(String text) {
   final records = <Map<String, dynamic>>[];
   for (final line in text.split('\n')) {
     final t = line.trim();
     if (t.isEmpty) continue;
     records.add(jsonDecode(t) as Map<String, dynamic>);
   }
+  return records;
+}
 
+/// 导入前预览：计算「新增 / 覆盖（内容不同）/ 相同」条数，不写库。
+Future<ImportPreview> previewImport(AppDatabase db, String text) async {
+  final records = _parseRecords(text);
   final convs = records.where((r) => r['record'] == 'conversation').toList();
   final msgs = records.where((r) => r['record'] == 'message').toList();
 
+  final convIds = convs.map(_conversationId).toSet();
+  final msgIds = msgs.map(_messageId).toSet();
+
+  final existingConvs = await db.existingConversationIds(convIds);
+  final existingMsgs = await db.messagesByIds(msgIds);
+
+  var newConversations = 0;
+  var existingConversations = 0;
+  for (final id in convIds) {
+    if (existingConvs.contains(id)) {
+      existingConversations++;
+    } else {
+      newConversations++;
+    }
+  }
+
+  var newMessages = 0;
+  var changedMessages = 0;
+  var identicalMessages = 0;
+  for (final r in msgs) {
+    final row = existingMsgs[_messageId(r)];
+    if (row == null) {
+      newMessages++;
+    } else if (_messageEqual(row, r)) {
+      identicalMessages++;
+    } else {
+      changedMessages++;
+    }
+  }
+
+  return ImportPreview(
+    newConversations: newConversations,
+    existingConversations: existingConversations,
+    newMessages: newMessages,
+    changedMessages: changedMessages,
+    identicalMessages: identicalMessages,
+  );
+}
+
+/// 已存在的消息与导入记录是否完全一致（内容 / 类型 / editedAt / metadata）。
+bool _messageEqual(Message m, Map<String, dynamic> r) {
+  if (m.type != _messageType(r['type'])) return false;
+  if (m.content != (r['content'] ?? '').toString()) return false;
+  final inEdited =
+      r['editedAt'] == null ? null : (r['editedAt'] as num).toInt();
+  if (m.editedAt != inEdited) return false;
+  try {
+    return _deepEqual(jsonDecode(m.metadata), r['metadata'] ?? {});
+  } catch (_) {
+    return m.metadata == jsonEncode(r['metadata'] ?? {});
+  }
+}
+
+/// 深度相等：Map/List/标量，忽略 Map 键顺序。
+bool _deepEqual(Object? a, Object? b) {
+  if (a is Map && b is Map) {
+    if (a.length != b.length) return false;
+    for (final k in a.keys) {
+      if (!b.containsKey(k) || !_deepEqual(a[k], b[k])) return false;
+    }
+    return true;
+  }
+  if (a is List && b is List) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!_deepEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  return a == b;
+}
+
+/// 导入 JSONL 文本：两遍扫描（conversation 先于 message），悬空引用惰性建占位会话。
+/// [mode] 控制冲突处理：overwrite 覆盖已有，skipExisting 跳过已有。
+Future<ImportResult> importJsonl(
+  AppDatabase db,
+  String text, {
+  ImportMode mode = ImportMode.overwrite,
+}) async {
+  final records = _parseRecords(text);
+  final convs = records.where((r) => r['record'] == 'conversation').toList();
+  final msgs = records.where((r) => r['record'] == 'message').toList();
+
+  final existingConvs = mode == ImportMode.skipExisting
+      ? await db.existingConversationIds(convs.map(_conversationId).toSet())
+      : null;
+  final existingMsgs = mode == ImportMode.skipExisting
+      ? await db.existingMessageIds(msgs.map(_messageId).toSet())
+      : null;
+
   await db.transaction(() async {
     for (final r in convs) {
+      if (existingConvs != null && existingConvs.contains(_conversationId(r))) {
+        continue;
+      }
       await db.upsertConversation(conversationCompanion(r));
     }
     for (final r in msgs) {
@@ -163,6 +309,9 @@ Future<ImportResult> importJsonl(AppDatabase db, String text) async {
           participants: jsonEncode([(r['senderId'] ?? '').toString()]),
           createdAt: (r['createdAt'] as num?)?.toInt() ?? 0,
         ));
+      }
+      if (existingMsgs != null && existingMsgs.contains(_messageId(r))) {
+        continue;
       }
       await db.upsertMessage(messageCompanion(r));
     }

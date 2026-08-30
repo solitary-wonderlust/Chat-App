@@ -98,6 +98,14 @@
 
 ## 阶段 3 — 导入导出与合并体验
 
+> 完成状态（2026-08-31）：
+> - ✅ 3A 服务器互导：设置页「导入到服务器（跨设备合并）」/「从服务器导出」入口 + 进度弹窗；复用既有 `/import` `/export`（客户端早前已具备 `importToServer` / `exportFromServer`）。客户端测试 13。
+> - ✅ 3B 第三方转换器：`app/lib/import_export/converters/` 独立实现，微信/QQ 常见 txt 与 json → 本格式 JSONL（无 UUID 走确定性 id；`me` 并入 participants 保证导入后可见）。样例 `app/test/fixtures/{wechat,qq}.txt`、`wechat.json`。客户端测试 11。
+> - ✅ 3C 合并预览与冲突：`previewImport` 区分「新增 / 覆盖（内容不同）/ 相同」，`importJsonl(mode: overwrite|skipExisting)`；导入前弹预览 sheet 选「跳过已有 / 覆盖已有」。客户端测试 6。
+> - ✅ 客户端 `flutter analyze` 0 问题；客户端测试 32/32、服务端测试 39/39 全绿（本阶段未改服务端）。
+>
+> 待办验证（需用户）：真机 OPPO 冒烟补测「A 导出 → B 导入到服务器 → A 同步可见合并结果」；`docker compose up` 部署验证。
+
 ### 3A 服务器互导 UI
 - **文件**：`app/lib/ui/settings_page.dart`、`app/lib/service.dart`
 - **内容**：设置页加「从服务器导出 / 导入到服务器」入口 + 进度/结果提示。

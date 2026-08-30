@@ -9,6 +9,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'api/api_client.dart';
 import 'auth/session.dart';
 import 'db/database.dart';
+import 'import_export/converters/converters.dart';
 import 'import_export/jsonl.dart';
 
 class ChatService {
@@ -239,7 +240,20 @@ class ChatService {
         to: to,
       );
 
-  Future<ImportResult> importLocalJsonl(String text) => importJsonl(db, text);
+  Future<ImportResult> importLocalJsonl(
+    String text, {
+    ImportMode mode = ImportMode.overwrite,
+  }) =>
+      importJsonl(db, text, mode: mode);
+
+  /// 导入前预览：计算「新增 / 覆盖（内容不同）/ 相同」条数，不写库。
+  Future<ImportPreview> previewImportLocal(String text) =>
+      previewImport(db, text);
+
+  /// 把任意聊天记录文本（本格式 JSONL / 微信 QQ txt / 常见 json）统一转成本格式 JSONL。
+  /// 第三方转换时会把当前登录用户名并入 participants，确保导入后可见。
+  ConvertResult convertImportText(String text) =>
+      convertThirdParty(text, me: username);
 
   /// 从服务器导出（可按 会话/发送者/时间范围 过滤；客户端本地可能不完整时用它兜底）。
   Future<String> exportFromServer({

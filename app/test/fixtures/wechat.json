@@ -1,0 +1,4 @@
+[
+  { "sender": "alice", "content": "hello", "time": 1700000000000 },
+  { "sender": "bob", "content": "hi", "time": 1700000001000 }
+]

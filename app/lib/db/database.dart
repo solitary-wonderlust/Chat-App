@@ -67,6 +67,34 @@ class AppDatabase extends _$AppDatabase {
     return row.readNullable<int>('m') ?? 0;
   }
 
+  // ---- 导入预览 / 合并模式（3C） ----
+
+  /// 返回给定 id 集合中已存在的会话 id（供导入预览 / skipExisting 合并模式）。
+  Future<Set<String>> existingConversationIds(Iterable<String> ids) async {
+    final list = ids.where((i) => i.isNotEmpty).toSet().toList();
+    if (list.isEmpty) return {};
+    final rows = await (select(conversations)
+          ..where((c) => c.id.isIn(list)))
+        .get();
+    return rows.map((c) => c.id).toSet();
+  }
+
+  /// 返回给定 id 集合中已存在的消息 id。
+  Future<Set<String>> existingMessageIds(Iterable<String> ids) async {
+    final list = ids.where((i) => i.isNotEmpty).toSet().toList();
+    if (list.isEmpty) return {};
+    final rows = await (select(messages)..where((m) => m.id.isIn(list))).get();
+    return rows.map((m) => m.id).toSet();
+  }
+
+  /// 按 id 批量取消息（含完整字段，供预览时比较内容是否变化）。
+  Future<Map<String, Message>> messagesByIds(Iterable<String> ids) async {
+    final list = ids.where((i) => i.isNotEmpty).toSet().toList();
+    if (list.isEmpty) return {};
+    final rows = await (select(messages)..where((m) => m.id.isIn(list))).get();
+    return {for (final m in rows) m.id: m};
+  }
+
   // ---- outbox ----
 
   Future<void> enqueueOutbox(OutboxCompanion o) => into(outbox).insert(o);
