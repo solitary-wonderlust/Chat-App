@@ -15,7 +15,7 @@
 |---|---|---|
 | 0 | 契约 + 骨架 | ✅ 已完成 |
 | 1 | 跑通与硬化 | 1A 后端测试 · 1B 客户端跑通 · 1C 部署 · 1D 文档 |
-| 2 | 核心功能 | 2A 附件 · 2B 群聊 · 2C 搜索/导出过滤 · 2D 编辑/删除/回执 |
+| 2 | 核心功能 | 2A 附件 · 2B 搜索/导出过滤 · 2C 编辑/删除/回执 |
 | 3 | 导入导出体验 | 3A 服务器互导 UI · 3B 第三方转换器 · 3C 合并预览 |
 | 4 | 发布打磨 | 4A 打包 · 4B E2E · 4C 发布文档 |
 
@@ -59,7 +59,9 @@
 
 ## 阶段 2 — 核心功能增强
 
-> 目标：补齐「聊天 App」该有的能力。四个 workstream 主要落在不同文件，热点处需隔离。
+> 目标：补齐「聊天 App」该有的能力。三个 workstream 主要落在不同文件，热点处需隔离。
+>
+> 群聊完整能力（改群名、增删成员）已从本期移除：需求不明确，**未来需要时再添加**（见下方「未来延后项」）。
 
 ### 2A 附件（图片/文件）
 - **契约**：`docs/api.md` 增 `/attachments` 上传与静态下载；`format.md` 明确 `type:image/file` 的 `content` 存 URL。
@@ -67,22 +69,23 @@
 - **客户端文件**：`app/lib/api/api_client.dart`（新增方法）、`app/lib/ui/chat_page.dart`（选图/选文件/预览）。
 - **DoD**：发一张图，双端可见；导出 JSONL 里 content 为 URL，导入后可访问。
 
-### 2B 群聊完整能力
-- **文件**：`server/src/routes.ts` + `store.ts`（成员/群名变更）、`app/lib/ui/home_page.dart` + 新增 `app/lib/ui/group_settings_page.dart`。
-- **内容**：改群名、增删成员、群信息展示。
-- **DoD**：群名/成员变更实时广播给群成员；会话列表正确显示。
-
-### 2C 消息搜索 + 导出过滤
+### 2B 消息搜索 + 导出过滤
 - **文件**：`server/src/store.ts` + `routes.ts`（搜索/过滤查询）、`app/lib/ui/settings_page.dart`（导出范围选项）。
 - **内容**：按关键词搜消息；导出按「用户 / 会话 / 时间范围」过滤（`/export` 增加参数）。
 - **DoD**：搜索结果命中；过滤导出后导入结果正确。
 
-### 2D 消息编辑 / 删除 / 已读回执
+### 2C 消息编辑 / 删除 / 已读回执
 - **文件**：`server/src/routes.ts` + `service.ts` + `store.ts`（编辑/删除端点）、`app/lib/service.dart` + `app/lib/ui/chat_page.dart`。
 - **内容**：编辑（更新 `edited_at` + 广播）、删除（软删/撤回）、已读（`metadata.read` 或独立 `read_receipts` 表）。
 - **DoD**：编辑/撤回实时同步；已读状态双端一致。
 
-> 2A/2B/2C/2D 都触及 `routes.ts` 与 `chat_page.dart`：建议 2A 与 2D 分属不同层（后端附件 vs 客户端交互）用 worktree 隔离，或按「先后端契约、再客户端」两波推进。
+### 未来延后项：群聊完整能力（本期不做）
+> 群聊本期不需要，**未来需要时再添加**，条目如下，届时按此启用即可：
+- **文件**：`server/src/routes.ts` + `store.ts`（成员/群名变更）、`app/lib/ui/home_page.dart` + 新增 `app/lib/ui/group_settings_page.dart`。
+- **内容**：改群名、增删成员、群信息展示。
+- **DoD**：群名/成员变更实时广播给群成员；会话列表正确显示。
+
+> 2A/2B/2C 都触及 `routes.ts` 与 `chat_page.dart`：建议 2A 与 2C 分属不同层（后端附件 vs 客户端交互）用 worktree 隔离，或按「先后端契约、再客户端」两波推进。
 
 ---
 

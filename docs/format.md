@@ -21,8 +21,8 @@ CREATE TABLE users (
 
 CREATE TABLE conversations (
   id           TEXT PRIMARY KEY,      -- UUID
-  type         TEXT NOT NULL,         -- 'direct' | 'group'
-  name         TEXT,                  -- 群名，direct 可空
+  type         TEXT NOT NULL,         -- 'direct'（现用）| 'group'（预留，未来按需启用）
+  name         TEXT,                  -- 群名；direct 会话一般为 null（group 预留）
   participants TEXT NOT NULL,         -- JSON 数组 ["alice","bob"]
   created_at   INTEGER NOT NULL
 );
@@ -60,8 +60,8 @@ CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at);
 |---|---|---|---|
 | `record` | string | 是 | 固定为 `"conversation"` |
 | `id` | string(UUID) | 是 | 会话唯一 id |
-| `type` | string | 是 | `direct` \| `group` |
-| `name` | string\|null | 否 | 群名 |
+| `type` | string | 是 | `direct`（现用）\| `group`（预留，客户端当前不创建） |
+| `name` | string\|null | 否 | 群名（group 预留；direct 一般为 `null`） |
 | `participants` | string[] | 是 | 参与用户名数组 |
 | `createdAt` | number | 是 | epoch 毫秒 |
 
