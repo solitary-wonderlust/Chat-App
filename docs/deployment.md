@@ -75,6 +75,8 @@ JWT_SECRET=$(openssl rand -hex 32) PORT=8080 DB_PATH=/srv/chat/chat.db node dist
 
 建议用 systemd / pm2 / 进程守护托管，配日志轮转。
 
+**升级**：`git pull` → `npm install` → `npm run build` → 重启服务进程；`DB_PATH` 指向原数据文件即可，升级不丢数据。跨大版本先看 [CHANGELOG.md](../CHANGELOG.md) 确认格式 / 接口是否有破坏性变更。
+
 ## 三、反向代理（HTTPS / WSS）
 
 客户端用 WebSocket 实时推送，反向代理需同时转发 HTTP 与 WebSocket 升级头。Nginx 示例：

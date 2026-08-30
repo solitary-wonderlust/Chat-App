@@ -3,7 +3,12 @@
 
 import { randomUUID } from 'node:crypto';
 import type { Database } from 'better-sqlite3';
-import type { Conversation, ConversationRecord, MessageRecord } from './types.js';
+import type {
+  Conversation,
+  ConversationRecord,
+  Message,
+  MessageRecord,
+} from './types.js';
 import {
   parseJsonl,
   conversationToRecord,

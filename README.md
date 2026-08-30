@@ -26,6 +26,7 @@ chat-app/
 - [docs/api.md](docs/api.md) — REST + WebSocket 接口参考
 - [docs/development-plan.md](docs/development-plan.md) — 阶段性任务拆解与并行开发指南
 - [docs/deployment.md](docs/deployment.md) — 部署指南（Docker Compose / 直接跑 node / 反向代理）
+- [CHANGELOG.md](CHANGELOG.md) — 版本更新日志
 
 ## 环境要求
 
@@ -90,6 +91,15 @@ flutter run
    - 「设置 → 导入到服务器 / 从服务器导出」跨设备合并：A 导出 → B 导入到服务器 → A 同步后可见合并结果。
    - 手动合并：`cat a.jsonl b.jsonl > merged.jsonl` 后导入，或用服务器 `POST /import` 回灌，重复导入无副本。
 4. **后端单测**：`cd server && npm test`，覆盖幂等、往返、合并、隔离。
+
+## 四、升级
+
+- **后端（Docker）**：`cd server && docker compose build --pull && docker compose up -d`。SQLite 数据在命名卷里，升级不丢数据。
+- **后端（直接跑 node）**：`cd server && git pull && npm install && npm run build && <重启服务>`，`DB_PATH` 指向原数据文件即可。
+- **客户端**：重新构建并安装新包（`flutter run` 调试模式，或阶段 4A 完成后的 release 安装包）。
+- **跨服务器迁移**：旧服务器「设置 → 导出聊天记录」→ 新服务器「设置 → 导入」，无需搬 SQLite 文件（见 [docs/deployment.md](docs/deployment.md) §四）。
+
+版本历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## JSONL 示例
 
