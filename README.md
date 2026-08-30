@@ -25,6 +25,7 @@ chat-app/
 - [docs/architecture.md](docs/architecture.md) — 架构设计、同步模型、模块边界
 - [docs/api.md](docs/api.md) — REST + WebSocket 接口参考
 - [docs/development-plan.md](docs/development-plan.md) — 阶段性任务拆解与并行开发指南
+- [docs/deployment.md](docs/deployment.md) — 部署指南（Docker Compose / 直接跑 node / 反向代理）
 
 ## 环境要求
 
@@ -39,6 +40,8 @@ npm install
 npm test          # 跑单测：幂等 upsert / JSONL 往返 / 合并去重 / 多用户隔离
 npm run dev       # 开发模式，默认监听 0.0.0.0:3000
 ```
+
+> 也可以用 Docker Compose 一键起服（容器化部署见 [docs/deployment.md](docs/deployment.md)）。
 
 环境变量（可选）：
 

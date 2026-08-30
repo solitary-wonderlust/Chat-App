@@ -1,0 +1,8 @@
+node_modules/
+dist/
+data/
+tests/
+.env
+*.log
+Dockerfile
+docker-compose.yml

@@ -1,0 +1,23 @@
+# 一键起后端：docker compose up -d --build
+# 同目录 .env（复制自 .env.example）里的 JWT_SECRET 会被自动读取。
+services:
+  server:
+    build: .
+    container_name: chat-app-server
+    ports:
+      - "3000:3000"
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-me}
+    volumes:
+      - chat-data:/app/data
+    healthcheck:
+      # 容器内置 node，用全局 fetch 打 /health
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  chat-data:
