@@ -98,18 +98,39 @@ String _messageType(Object? t) {
 // ---- 导入 / 导出 ----
 
 /// 导出 JSONL 文本：先 conversation 行，再 message 行。
-Future<String> exportJsonl(AppDatabase db, {String? conversationId}) async {
+/// 可按 会话/发送者/时间范围 过滤，语义与服务端 export.ts 一致。
+Future<String> exportJsonl(
+  AppDatabase db, {
+  String? conversationId,
+  String? senderId,
+  int? from,
+  int? to,
+}) async {
   final lines = <String>[];
-  final convs = conversationId != null
+  var convs = conversationId != null
       ? [await db.getConversation(conversationId)]
       : await db.getAllConversations();
-  final valid = convs.whereType<Conversation>().toList();
+  var valid = convs.whereType<Conversation>().toList();
+
+  bool matches(Message m) =>
+      (senderId == null || m.senderId == senderId) &&
+      (from == null || m.createdAt >= from) &&
+      (to == null || m.createdAt <= to);
+
+  // 有消息级过滤时，只保留至少含一条命中消息的会话，避免导出空会话壳。
+  if (senderId != null || from != null || to != null) {
+    valid = [
+      for (final c in valid)
+        if ((await db.getMessagesForConversation(c.id)).any(matches)) c,
+    ];
+  }
+
   for (final c in valid) {
     lines.add(conversationToLine(c));
   }
   for (final c in valid) {
     for (final m in await db.getMessagesForConversation(c.id)) {
-      lines.add(messageToLine(m));
+      if (matches(m)) lines.add(messageToLine(m));
     }
   }
   return lines.isEmpty ? '' : '${lines.join('\n')}\n';

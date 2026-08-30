@@ -6,6 +6,7 @@ import websocket from '@fastify/websocket';
 import type { Database } from 'better-sqlite3';
 import { registerRoutes } from './routes.js';
 import { registerWs } from './ws.js';
+import { registerAttachments } from './attachments.js';
 
 export async function buildApp(db: Database) {
   const app = Fastify({ logger: false });
@@ -14,6 +15,7 @@ export async function buildApp(db: Database) {
   // 否则 WebSocket 处理器会被当成普通 HTTP handler 以 (request, reply) 调用。
   await app.register(websocket);
   registerRoutes(app, db);
+  registerAttachments(app, db);
   registerWs(app, db);
   return app;
 }

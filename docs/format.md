@@ -38,9 +38,16 @@ CREATE TABLE messages (
   metadata        TEXT                -- JSON，预留扩展
 );
 CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at);
+
+CREATE TABLE read_receipts (          -- 已读回执（运行时表，不参与导出）
+  conversation_id TEXT NOT NULL,
+  username        TEXT NOT NULL,
+  up_to           INTEGER NOT NULL,   -- 该用户已读到的最大消息 created_at
+  PRIMARY KEY (conversation_id, username)
+);
 ```
 
-> `users` 属于账号层，**不参与导出**。记录层只有 `conversations` 与 `messages`，其中的用户通过 `sender_id` / `participants` 里的**用户名**引用。
+> `users`、`read_receipts` 属于账号/运行时层，**不参与导出**。记录层只有 `conversations` 与 `messages`，其中的用户通过 `sender_id` / `participants` 里的**用户名**引用。
 
 ## 3. 导出格式：JSONL
 
@@ -78,6 +85,18 @@ CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at);
 | `createdAt` | number | 是 | epoch 毫秒 |
 | `editedAt` | number\|null | 否 | 编辑时间 |
 | `metadata` | object | 否 | 预留，默认 `{}` |
+
+**附件消息**（`type: image | file`）：`content` 存附件在服务器的**相对 URL**（如 `/attachments/<id>/<name>`，接口见 [api.md](api.md) §附件）。文件名/大小/mime 放 `metadata`，随 JSONL 往返；导入后 `serverUrl + content` 即可访问：
+
+```
+{"record":"message","id":"uuid-m","conversationId":"uuid-c","senderId":"alice","type":"image","content":"/attachments/<id>/<name>","createdAt":1700000000001,"editedAt":null,"metadata":{"name":"照片.png","size":102400,"mime":"image/png"}}
+```
+
+**撤回消息**：删除是软删墓碑，不删行。撤回后 `content` 清空（附件 URL 一并失效）、`metadata.deleted = true`。客户端对 `deleted` 消息显示「已撤回」，不渲染原内容：
+
+```
+{"record":"message","id":"uuid-m","conversationId":"uuid-c","senderId":"alice","type":"text","content":"","createdAt":1700000000001,"editedAt":1700000000100,"metadata":{"deleted":true}}
+```
 
 ## 4. 导入规则
 

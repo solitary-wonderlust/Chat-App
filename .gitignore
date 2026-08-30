@@ -8,6 +8,9 @@ server/dist/
 *.db-wal
 *.db-shm
 
+# server 运行时附件（随 SQLite 一起由数据卷持久化）
+server/data/attachments/
+
 # Flutter / Dart
 app/.dart_tool/
 app/build/

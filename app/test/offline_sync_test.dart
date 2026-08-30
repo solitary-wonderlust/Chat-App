@@ -154,4 +154,382 @@ void main() {
       expect(all.firstWhere((m) => m.id == 'm2').content, 'msg-m2-edited');
     });
   });
+
+  group('附件上传（sendAttachment）', () {
+    test('上传成功 → 落本地 image 消息（含 metadata）+ 入 outbox', () async {
+      final db = _memoryDb();
+      addTearDown(db.close);
+
+      await db.upsertConversation(ConversationsCompanion.insert(
+        id: 'c1',
+        type: 'direct',
+        participants: jsonEncode(['alice', 'bob']),
+        createdAt: 1,
+      ));
+
+      // Mock POST /attachments 返回相对 url；其余路径 404（push 中断、outbox 保留）。
+      final api = ApiClient(
+        'http://localhost:3000',
+        client: MockClient((req) async {
+          if (req.url.path == '/attachments') {
+            expect(req.headers['content-type'], 'image/png');
+            expect(req.headers['authorization'], 'Bearer token');
+            expect(req.headers['x-filename'], Uri.encodeComponent('照片.png'));
+            return http.Response(
+              jsonEncode({
+                'url': '/attachments/abc/照片.png',
+                'name': '照片.png',
+                'size': 42,
+                'mime': 'image/png',
+              }),
+              201,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            );
+          }
+          return http.Response('not found', 404);
+        }),
+      );
+      final service = ChatService(
+        db: db,
+        api: api,
+        session: const Session(
+          token: 'token',
+          userId: 'u-alice',
+          username: 'alice',
+          serverUrl: 'http://localhost:3000',
+        ),
+      );
+
+      final bytes = Uint8List.fromList(List.generate(42, (i) => i));
+      await service.sendAttachment('c1', bytes, '照片.png', 'image/png');
+      // fire-and-forget 的 pushOutbox 跑完（404 中断、outbox 保留），避免残留未决 future。
+      await Future<void>.delayed(Duration.zero);
+
+      final msgs = await db.getMessagesForConversation('c1');
+      expect(msgs.length, 1);
+      final m = msgs.single;
+      expect(m.type, 'image');
+      expect(m.content, '/attachments/abc/照片.png');
+
+      final meta = jsonDecode(m.metadata) as Map<String, dynamic>;
+      expect(meta['name'], '照片.png');
+      expect(meta['size'], 42);
+      expect(meta['mime'], 'image/png');
+
+      final outbox = await db.pendingOutbox();
+      expect(outbox.length, 1);
+      expect(outbox.first.id, m.id);
+    });
+
+    test('非图片 mime 落 file 消息', () async {
+      final db = _memoryDb();
+      addTearDown(db.close);
+
+      await db.upsertConversation(ConversationsCompanion.insert(
+        id: 'c1',
+        type: 'direct',
+        participants: jsonEncode(['alice', 'bob']),
+        createdAt: 1,
+      ));
+      final api = ApiClient(
+        'http://localhost:3000',
+        client: MockClient((req) async => req.url.path == '/attachments'
+            ? http.Response(
+                jsonEncode({
+                  'url': '/attachments/xyz/note.pdf',
+                  'name': 'note.pdf',
+                  'size': 100,
+                  'mime': 'application/pdf',
+                }),
+                201,
+              )
+            : http.Response('not found', 404)),
+      );
+      final service = ChatService(
+        db: db,
+        api: api,
+        session: const Session(
+          token: 'token',
+          userId: 'u-alice',
+          username: 'alice',
+          serverUrl: 'http://localhost:3000',
+        ),
+      );
+
+      await service.sendAttachment(
+        'c1',
+        Uint8List.fromList(List.filled(100, 1)),
+        'note.pdf',
+        'application/pdf',
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final m = (await db.getMessagesForConversation('c1')).single;
+      expect(m.type, 'file');
+      expect(m.content, '/attachments/xyz/note.pdf');
+    });
+  });
+
+  group('消息搜索（GET /search）', () {
+    test('请求携带关键词，返回解析为消息列表', () async {
+      final api = ApiClient(
+        'http://localhost:3000',
+        client: MockClient((req) async {
+          expect(req.method, 'GET');
+          expect(req.url.path, '/search');
+          expect(req.url.queryParameters['q'], '你好');
+          return http.Response(
+            jsonEncode([
+              {
+                'record': 'message',
+                'id': 'm1',
+                'conversationId': 'c1',
+                'senderId': 'bob',
+                'type': 'text',
+                'content': '你好',
+                'createdAt': 1,
+                'editedAt': null,
+                'metadata': <String, dynamic>{},
+              },
+            ]),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }),
+      );
+      final res = await api.searchMessages('token', query: '你好');
+      expect(res, hasLength(1));
+      expect((res.single as Map)['content'], '你好');
+    });
+  });
+
+  group('导出过滤（service.exportLocalJsonl）', () {
+    late AppDatabase db;
+    late ChatService service;
+
+    setUp(() async {
+      db = _memoryDb();
+      addTearDown(db.close);
+      await db.upsertConversation(ConversationsCompanion.insert(
+        id: 'c1',
+        type: 'direct',
+        participants: jsonEncode(['alice', 'bob']),
+        createdAt: 1,
+      ));
+      await db.upsertMessage(MessagesCompanion.insert(
+        id: 'm1',
+        conversationId: 'c1',
+        senderId: 'alice',
+        type: 'text',
+        content: 'from-alice',
+        createdAt: 100,
+        metadata: '{}',
+      ));
+      await db.upsertMessage(MessagesCompanion.insert(
+        id: 'm2',
+        conversationId: 'c1',
+        senderId: 'bob',
+        type: 'text',
+        content: 'from-bob',
+        createdAt: 200,
+        metadata: '{}',
+      ));
+      await db.upsertMessage(MessagesCompanion.insert(
+        id: 'm3',
+        conversationId: 'c1',
+        senderId: 'alice',
+        type: 'text',
+        content: 'from-alice-late',
+        createdAt: 300,
+        metadata: '{}',
+      ));
+      service = ChatService(
+        db: db,
+        api: ApiClient('http://localhost:3000'),
+        session: const Session(
+          token: 't',
+          userId: 'u',
+          username: 'alice',
+          serverUrl: 'http://localhost:3000',
+        ),
+      );
+    });
+
+    List<Map<String, dynamic>> messagesOf(String text) => text
+        .trim()
+        .split('\n')
+        .map((l) => jsonDecode(l) as Map<String, dynamic>)
+        .where((r) => r['record'] == 'message')
+        .toList();
+
+    test('按发送者过滤：只含该发送者的消息与相关会话', () async {
+      final text = await service.exportLocalJsonl(senderId: 'bob');
+      final msgs = messagesOf(text);
+      expect(msgs.length, 1);
+      expect(msgs.single['content'], 'from-bob');
+
+      final convs = text
+          .trim()
+          .split('\n')
+          .map((l) => jsonDecode(l) as Map<String, dynamic>)
+          .where((r) => r['record'] == 'conversation');
+      expect(convs.length, 1);
+    });
+
+    test('按时间范围过滤：只含区间内消息', () async {
+      final text = await service.exportLocalJsonl(from: 150, to: 250);
+      final msgs = messagesOf(text);
+      expect(msgs.length, 1);
+      expect(msgs.single['content'], 'from-bob');
+    });
+
+    test('会话 + 发送者 + 时间组合过滤', () async {
+      final text = await service.exportLocalJsonl(
+        conversationId: 'c1',
+        senderId: 'alice',
+        from: 150,
+      );
+      final msgs = messagesOf(text);
+      expect(msgs.length, 1);
+      expect(msgs.single['content'], 'from-alice-late');
+    });
+  });
+
+  group('编辑 / 撤回 / 已读（2C）', () {
+    const alice = Session(
+      token: 'token',
+      userId: 'u-alice',
+      username: 'alice',
+      serverUrl: 'http://localhost:3000',
+    );
+
+    Future<AppDatabase> seedDb() async {
+      final db = _memoryDb();
+      addTearDown(db.close);
+      await db.upsertConversation(ConversationsCompanion.insert(
+        id: 'c1',
+        type: 'direct',
+        participants: jsonEncode(['alice', 'bob']),
+        createdAt: 1,
+      ));
+      await db.upsertMessage(MessagesCompanion.insert(
+        id: 'm1',
+        conversationId: 'c1',
+        senderId: 'alice',
+        type: 'text',
+        content: 'original',
+        createdAt: 100,
+        metadata: '{}',
+      ));
+      return db;
+    }
+
+    test('编辑：PATCH 后本地 upsert 更新后的记录', () async {
+      final db = await seedDb();
+      final api = ApiClient(
+        'http://localhost:3000',
+        client: MockClient((req) async {
+          expect(req.method, 'PATCH');
+          expect(req.url.path, '/messages/m1');
+          expect(jsonDecode(req.body)['content'], 'edited');
+          return http.Response(
+            jsonEncode({
+              'record': 'message',
+              'id': 'm1',
+              'conversationId': 'c1',
+              'senderId': 'alice',
+              'type': 'text',
+              'content': 'edited',
+              'createdAt': 100,
+              'editedAt': 200,
+              'metadata': <String, dynamic>{},
+            }),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }),
+      );
+      final service = ChatService(db: db, api: api, session: alice);
+
+      await service.editMessage('c1', 'm1', 'edited');
+
+      final m = (await db.getMessagesForConversation('c1')).single;
+      expect(m.content, 'edited');
+      expect(m.editedAt, 200);
+    });
+
+    test('撤回：DELETE 后本地存墓碑（content 清空 + metadata.deleted）', () async {
+      final db = await seedDb();
+      final api = ApiClient(
+        'http://localhost:3000',
+        client: MockClient((req) async {
+          expect(req.method, 'DELETE');
+          expect(req.url.path, '/messages/m1');
+          return http.Response(
+            jsonEncode({
+              'record': 'message',
+              'id': 'm1',
+              'conversationId': 'c1',
+              'senderId': 'alice',
+              'type': 'text',
+              'content': '',
+              'createdAt': 100,
+              'editedAt': 200,
+              'metadata': {'deleted': true},
+            }),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }),
+      );
+      final service = ChatService(db: db, api: api, session: alice);
+
+      await service.deleteMessage('c1', 'm1');
+
+      final m = (await db.getMessagesForConversation('c1')).single;
+      expect(m.content, '');
+      expect((jsonDecode(m.metadata) as Map)['deleted'], true);
+    });
+
+    test('已读：markRead 上报本地最大游标；conversationReads 返回对方游标', () async {
+      final db = await seedDb();
+      await db.upsertMessage(MessagesCompanion.insert(
+        id: 'm2',
+        conversationId: 'c1',
+        senderId: 'alice',
+        type: 'text',
+        content: 'later',
+        createdAt: 200,
+        metadata: '{}',
+      ));
+      final api = ApiClient(
+        'http://localhost:3000',
+        client: MockClient((req) async {
+          if (req.method == 'POST' && req.url.path == '/conversations/c1/read') {
+            expect(jsonDecode(req.body)['upTo'], 200);
+            return http.Response(
+              jsonEncode({'ok': true, 'upTo': 200}),
+              200,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            );
+          }
+          if (req.method == 'GET' && req.url.path == '/conversations/c1/read') {
+            return http.Response(
+              jsonEncode([
+                {'username': 'bob', 'upTo': 150},
+              ]),
+              200,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            );
+          }
+          return http.Response('not found', 404);
+        }),
+      );
+      final service = ChatService(db: db, api: api, session: alice);
+
+      await service.markConversationRead('c1');
+      final reads = await service.conversationReads('c1');
+      expect(reads, {'bob': 150});
+    });
+  });
 }

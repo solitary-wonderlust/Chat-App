@@ -8,6 +8,7 @@ import '../db/database.dart';
 import '../service.dart';
 import '../state.dart';
 import 'chat_page.dart';
+import 'search_page.dart';
 import 'settings_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -107,6 +108,14 @@ class _HomePageState extends ConsumerState<HomePage> {
       appBar: AppBar(
         title: const Text('会话'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: '搜索消息',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SearchPage()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => Navigator.push(

@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../state.dart';
+import 'export_filter_sheet.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -26,11 +27,34 @@ class SettingsPage extends ConsumerWidget {
     }
   }
 
+  /// 弹出导出过滤条件；用户取消返回 null。
+  Future<ExportFilter?> _pickFilter(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final service = ref.read(chatServiceProvider);
+    if (service == null) return null;
+    final convs = await ref.read(databaseProvider).getAllConversations();
+    if (!context.mounted) return null;
+    return showExportFilterSheet(
+      context,
+      currentUser: service.username,
+      conversations: convs,
+    );
+  }
+
   Future<void> _export(BuildContext context, WidgetRef ref) async {
     final service = ref.read(chatServiceProvider);
     if (service == null) return;
+    final filter = await _pickFilter(context, ref);
+    if (filter == null || !context.mounted) return; // 用户取消
     try {
-      final text = await service.exportLocalJsonl();
+      final text = await service.exportLocalJsonl(
+        conversationId: filter.conversationId,
+        senderId: filter.senderId,
+        from: filter.from,
+        to: filter.to,
+      );
       final dir = await getTemporaryDirectory();
       final file = File(
         '${dir.path}/chat_export_${DateTime.now().millisecondsSinceEpoch}.jsonl',
@@ -48,8 +72,15 @@ class SettingsPage extends ConsumerWidget {
   Future<void> _exportServer(BuildContext context, WidgetRef ref) async {
     final service = ref.read(chatServiceProvider);
     if (service == null) return;
+    final filter = await _pickFilter(context, ref);
+    if (filter == null || !context.mounted) return; // 用户取消
     try {
-      final text = await service.exportFromServer();
+      final text = await service.exportFromServer(
+        conversationId: filter.conversationId,
+        senderId: filter.senderId,
+        from: filter.from,
+        to: filter.to,
+      );
       final dir = await getTemporaryDirectory();
       final file = File(
         '${dir.path}/chat_server_export_${DateTime.now().millisecondsSinceEpoch}.jsonl',

@@ -25,6 +25,12 @@ export interface ExportOptions {
   conversationId?: string;
   /** 按登录用户过滤：只导出该用户参与的会话（「按登录用户区分显示」）。 */
   username?: string;
+  /** 只导出该发送者的消息。 */
+  senderId?: string;
+  /** 只导出 created_at >= from 的消息（epoch 毫秒）。 */
+  from?: number;
+  /** 只导出 created_at <= to 的消息（epoch 毫秒）。 */
+  to?: number;
 }
 
 /** 生成 JSONL 文本：先写 conversation 行，再写 message 行。 */
@@ -42,12 +48,26 @@ export function exportJsonl(db: Database, opts: ExportOptions = {}): string {
     );
   }
 
+  const matchesFilter = (m: Message): boolean => {
+    if (opts.senderId != null && m.sender_id !== opts.senderId) return false;
+    if (opts.from != null && m.created_at < opts.from) return false;
+    if (opts.to != null && m.created_at > opts.to) return false;
+    return true;
+  };
+
+  // 有消息级过滤时，只保留至少含一条命中消息的会话，避免导出空会话壳。
+  if (opts.senderId != null || opts.from != null || opts.to != null) {
+    conversations = conversations.filter((c) =>
+      listMessagesForConversation(db, c.id).some(matchesFilter),
+    );
+  }
+
   for (const c of conversations) {
     lines.push(toJsonlLine(conversationToRecord(c)));
   }
   for (const c of conversations) {
     for (const m of listMessagesForConversation(db, c.id)) {
-      lines.push(toJsonlLine(messageToRecord(m)));
+      if (matchesFilter(m)) lines.push(toJsonlLine(messageToRecord(m)));
     }
   }
   return lines.join('\n') + (lines.length ? '\n' : '');

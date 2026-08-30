@@ -30,6 +30,13 @@ export interface Message {
   metadata: Record<string, unknown>;
 }
 
+/** 已读回执：某用户在会话中已读到的最大 created_at（epoch 毫秒）。 */
+export interface ReadReceipt {
+  conversation_id: string;
+  username: string;
+  up_to: number;
+}
+
 // ---- JSONL 记录（导出格式，字段为驼峰） ----
 
 export interface ConversationRecord {

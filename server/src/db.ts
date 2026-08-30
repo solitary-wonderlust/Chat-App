@@ -31,6 +31,14 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS idx_messages_conversation
   ON messages(conversation_id, created_at);
+
+-- 已读回执：每位用户在每会话的已读游标（记录层不导出，见 docs/format.md §2）。
+CREATE TABLE IF NOT EXISTS read_receipts (
+  conversation_id TEXT NOT NULL,
+  username        TEXT NOT NULL,
+  up_to           INTEGER NOT NULL,
+  PRIMARY KEY (conversation_id, username)
+);
 `;
 
 export function openDb(path: string = ':memory:'): Database.Database {
