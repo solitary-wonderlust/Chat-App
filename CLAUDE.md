@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 跨平台聊天 App：Flutter 客户端（iOS/Android）+ 自托管 Node 后端。核心诉求：实时聊天 + 离线优先 + 聊天记录「不区分用户存储、按登录用户显示」+ JSONL 易导入/导出/合并 + 不加密。完整架构见 [docs/architecture.md](docs/architecture.md)。
 
+## 本机环境约束
+
+- 本机 C 盘空间有限：依赖下载、构建产物、缓存等能放 D:/E: 盘的尽量放 D:/E:，不要下载/生成到 C 盘。相关既有配置：`PUB_CACHE` 在 E:、Gradle 用阿里云镜像（见 memory `dev-env-windows`、`china-gradle-network`）。
+
 ## 常用命令
 
 后端（`server/`，Node + TypeScript + Fastify + better-sqlite3）：
