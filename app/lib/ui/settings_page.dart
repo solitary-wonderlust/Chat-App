@@ -5,27 +5,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:cross_file/cross_file.dart';
 
-import '../service.dart';
 import '../state.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
-  Future<void> _toast(BuildContext context, String msg) async {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(msg)));
-    }
+  void _toast(BuildContext context, String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _sync(BuildContext context, WidgetRef ref) async {
     try {
       await ref.read(chatServiceProvider)?.syncOnce();
-      await _toast(context, '同步完成');
+      if (!context.mounted) return;
+      _toast(context, '同步完成');
     } catch (e) {
-      await _toast(context, '同步失败：$e');
+      if (!context.mounted) return;
+      _toast(context, '同步失败：$e');
     }
   }
 
@@ -39,9 +36,12 @@ class SettingsPage extends ConsumerWidget {
         '${dir.path}/chat_export_${DateTime.now().millisecondsSinceEpoch}.jsonl',
       );
       await file.writeAsString(text);
-      await Share.shareXFiles([XFile(file.path)], subject: '聊天记录导出');
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)], subject: '聊天记录导出'),
+      );
     } catch (e) {
-      await _toast(context, '导出失败：$e');
+      if (!context.mounted) return;
+      _toast(context, '导出失败：$e');
     }
   }
 
@@ -55,9 +55,12 @@ class SettingsPage extends ConsumerWidget {
         '${dir.path}/chat_server_export_${DateTime.now().millisecondsSinceEpoch}.jsonl',
       );
       await file.writeAsString(text);
-      await Share.shareXFiles([XFile(file.path)], subject: '服务器聊天记录导出');
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)], subject: '服务器聊天记录导出'),
+      );
     } catch (e) {
-      await _toast(context, '导出失败：$e');
+      if (!context.mounted) return;
+      _toast(context, '导出失败：$e');
     }
   }
 
@@ -70,9 +73,11 @@ class SettingsPage extends ConsumerWidget {
       if (path == null) return;
       final text = await File(path).readAsString();
       final r = await service.importLocalJsonl(text);
-      await _toast(context, '导入完成：${r.conversations} 个会话，${r.messages} 条消息');
+      if (!context.mounted) return;
+      _toast(context, '导入完成：${r.conversations} 个会话，${r.messages} 条消息');
     } catch (e) {
-      await _toast(context, '导入失败：$e');
+      if (!context.mounted) return;
+      _toast(context, '导入失败：$e');
     }
   }
 

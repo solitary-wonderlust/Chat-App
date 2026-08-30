@@ -63,7 +63,7 @@ ConversationsCompanion conversationCompanion(Map<String, dynamic> r) {
   return ConversationsCompanion.insert(
     id: id,
     type: r['type'] == 'group' ? 'group' : 'direct',
-    name: Value(r['name'] == null ? null : r['name'].toString()),
+    name: Value<String?>(r['name']?.toString()),
     participants: jsonEncode(participants),
     createdAt: (r['createdAt'] as num?)?.toInt() ?? 0,
   );

@@ -13,7 +13,7 @@ part 'database.g.dart';
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'chat_app'));
 
-  AppDatabase.forTesting(QueryExecutor executor) : super(executor);
+  AppDatabase.forTesting(super.executor);
 
   @override
   int get schemaVersion => 1;
@@ -64,7 +64,7 @@ class AppDatabase extends _$AppDatabase {
       'SELECT MAX(created_at) AS m FROM messages WHERE conversation_id = ?',
       variables: [Variable(conversationId)],
     ).getSingle();
-    return row.read<int>('m') ?? 0;
+    return row.readNullable<int>('m') ?? 0;
   }
 
   // ---- outbox ----
