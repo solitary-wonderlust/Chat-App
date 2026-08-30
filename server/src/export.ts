@@ -23,16 +23,24 @@ import {
 export interface ExportOptions {
   /** 只导出指定会话；省略则导出全部。 */
   conversationId?: string;
+  /** 按登录用户过滤：只导出该用户参与的会话（「按登录用户区分显示」）。 */
+  username?: string;
 }
 
 /** 生成 JSONL 文本：先写 conversation 行，再写 message 行。 */
 export function exportJsonl(db: Database, opts: ExportOptions = {}): string {
   const lines: string[] = [];
-  const conversations: Conversation[] = opts.conversationId
+  let conversations: Conversation[] = opts.conversationId
     ? [getConversation(db, opts.conversationId)].filter(
         (c): c is Conversation => c != null,
       )
     : listConversations(db);
+
+  if (opts.username) {
+    conversations = conversations.filter((c) =>
+      c.participants.includes(opts.username as string),
+    );
+  }
 
   for (const c of conversations) {
     lines.push(toJsonlLine(conversationToRecord(c)));

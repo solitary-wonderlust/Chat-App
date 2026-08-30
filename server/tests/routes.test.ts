@@ -5,9 +5,9 @@ import assert from 'node:assert/strict';
 import { openDb } from '../src/db.js';
 import { buildApp } from '../src/app.js';
 
-function makeApp() {
+async function makeApp() {
   const db = openDb();
-  return { db, app: buildApp(db) };
+  return { db, app: await buildApp(db) };
 }
 
 async function register(app: ReturnType<typeof buildApp>, username: string) {
@@ -25,7 +25,7 @@ function auth(token: string) {
 }
 
 test('注册 / 登录 / 重复用户名 409', async () => {
-  const { app } = makeApp();
+  const { app } = await makeApp();
   const a = await register(app, 'alice');
   assert.ok(a.token);
 
@@ -45,7 +45,7 @@ test('注册 / 登录 / 重复用户名 409', async () => {
 });
 
 test('多用户隔离：A 的消息 B 可见，C 不可见', async () => {
-  const { app } = makeApp();
+  const { app } = await makeApp();
   const alice = await register(app, 'alice');
   const bob = await register(app, 'bob');
   const carol = await register(app, 'carol');
@@ -102,7 +102,7 @@ test('多用户隔离：A 的消息 B 可见，C 不可见', async () => {
 });
 
 test('消息增量拉取（after 游标）', async () => {
-  const { app } = makeApp();
+  const { app } = await makeApp();
   const alice = await register(app, 'alice');
   const bob = await register(app, 'bob');
   const conv = (
@@ -133,7 +133,7 @@ test('消息增量拉取（after 游标）', async () => {
 });
 
 test('导出接口返回 JSONL，导入接口可回灌', async () => {
-  const { app } = makeApp();
+  const { app } = await makeApp();
   const alice = await register(app, 'alice');
   const bob = await register(app, 'bob');
   const conv = (

@@ -7,10 +7,12 @@ import type { Database } from 'better-sqlite3';
 import { registerRoutes } from './routes.js';
 import { registerWs } from './ws.js';
 
-export function buildApp(db: Database) {
+export async function buildApp(db: Database) {
   const app = Fastify({ logger: false });
-  app.register(cors, { origin: true });
-  app.register(websocket);
+  await app.register(cors, { origin: true });
+  // 必须 await：@fastify/websocket 的 onRoute hook 需在注册 /ws 路由前安装，
+  // 否则 WebSocket 处理器会被当成普通 HTTP handler 以 (request, reply) 调用。
+  await app.register(websocket);
   registerRoutes(app, db);
   registerWs(app, db);
   return app;

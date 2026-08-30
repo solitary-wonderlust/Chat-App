@@ -141,7 +141,13 @@ export function registerRoutes(app: FastifyInstance, db: Database): void {
     const username = getUsername(request);
     if (!username) return reply.code(401).send({ error: 'unauthorized' });
     const query = request.query as { conversationId?: string };
-    const jsonl = exportJsonl(db, { conversationId: query.conversationId });
+    if (query.conversationId) {
+      const conv = getConversation(db, query.conversationId);
+      if (!conv || !conv.participants.includes(username)) {
+        return reply.code(403).send({ error: 'not a participant' });
+      }
+    }
+    const jsonl = exportJsonl(db, { conversationId: query.conversationId, username });
     return reply.type('application/x-ndjson').send(jsonl);
   });
 

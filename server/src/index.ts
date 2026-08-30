@@ -10,7 +10,7 @@ const dbPath = process.env.DB_PATH ?? './data/chat.db';
 
 mkdirSync(dirname(dbPath), { recursive: true });
 const db = openDb(dbPath);
-const app = buildApp(db);
+const app = await buildApp(db);
 
 app
   .listen({ port, host: '0.0.0.0' })
