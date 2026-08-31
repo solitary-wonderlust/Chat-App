@@ -25,10 +25,11 @@
 - 后端：42 个测试全绿（单元 + WebSocket 集成 + 端到端），含「双端实时全流程」「跨设备合并无重复」「千条导入 < 1s」。
 - 客户端：`flutter analyze` 0 问题，32 个测试全绿（数据层 / 转换器 / 导入合并预览）。
 - 编译产物：`tsc` 构建通过，`node dist/index.js` 冒烟（注册 → 建会话 → 发消息 → 导出）通过。
+- 真机（OPPO，2026-09-01）：release 包安装 → 启动 → 注册/登录 → 建会话 → 发消息全链路通过。冒烟中发现并修复 release 包缺失 `INTERNET` 权限（Flutter 模板只在 debug manifest 声明）导致无法联网的问题。
 
 ### 已知限制
 
 - 群聊完整能力（改群名 / 增删成员）未实现，未来需要时再添加。
 - 聊天内容明文存储 / 传输（密码哈希）；生产建议走 HTTPS/WSS。
 - 增量拉取游标用「会话内最大 `created_at`」+ `>`，极端同毫秒场景依赖 `id` 幂等兜底。
-- 客户端 release 包已可构建（包名 `com.chatapp.android`，正式 keystore 签名），但**真机安装验证尚未完成**；应用名 / 图标仍为占位符待替换，见 [docs/development-plan.md](docs/development-plan.md) 阶段 4A。
+- 客户端 release 包已构建并在 OPPO 真机跑通核心链路（安装 / 启动 / 注册 / 建会话 / 发消息）；应用名 / 图标为用户本机定制（`咕咕咪咪猫猫王`，不上传仓库），仓库内仍为占位符，见 [docs/development-plan.md](docs/development-plan.md) 阶段 4A。

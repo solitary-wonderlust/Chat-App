@@ -128,9 +128,9 @@
 > 完成状态（2026-08-31）：
 > - ✅ 4B 端到端与性能：`server/tests/e2e/e2e.test.ts` 真实端口 + HTTP fetch + WebSocket 全流程。3 个测试覆盖「双端实时（广播/编辑/撤回/已读/附件鉴权）」「导出→导入→再同步无重复」「千条导入 < 1s」。顺带修复了既有的 `src/export.ts` 漏 import 导致的 `tsc` 构建失败。服务端测试 42/42、`npm run build` 通过、编译产物冒烟通过。
 > - ✅ 4C 发布文档：新增 `CHANGELOG.md`；README 补「升级」一节与 CHANGELOG 链接；`docs/deployment.md` 补直接跑 node 的升级说明。
-> - ✅ 4A 打包配置：包名定为 `com.chatapp.android`；生成 release keystore（`app/android/app/chat-app-release.keystore`，密码在 gitignore 的 `key.properties`，**务必自行备份 keystore 文件**）；`flutter build apk --release` 成功（57.3MB，签名指纹 `ffb6ab18…`）。应用名/图标沿用占位符待用户自行替换。
+> - ✅ 4A 打包配置：包名定为 `com.chatapp.android`；生成 release keystore（`app/android/app/chat-app-release.keystore`，密码在 gitignore 的 `key.properties`，**务必自行备份 keystore 文件**）；`flutter build apk --release` 成功（57.3MB，签名指纹 `ffb6ab18…`）。应用名/图标已在用户本机定制（`咕咕咪咪猫猫王` + 自定义图标，经 `git update-index --skip-worktree` 隐藏，不上传仓库）。
 >
-> 待办验证（需用户）：真机 OPPO 安装 release 包跑通全部链路（含 4A 安装验证）；应用名 + 图标替换后重新构建；`docker compose up` 部署验证。
+> 验证状态（2026-09-01）：真机 OPPO 安装 release 包并跑通核心链路（注册 / 登录 / 建会话 / 发消息，含 4A 安装验证）。顺带修复 release 包缺失 `INTERNET` 权限 + 未开 cleartext 导致无法联网的问题。剩余待办：`docker compose up` 部署验证；真机补测附件 / 搜索 / 编辑撤回 / 跨设备合并。
 
 ### 4A 打包配置
 - **文件**：`app/android/`、图标/启动页
