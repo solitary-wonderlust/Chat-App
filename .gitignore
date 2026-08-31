@@ -22,6 +22,10 @@ app/ios/.symlinks/
 app/android/.gradle/
 app/android/app/.cxx/
 
+# Android release 签名（切勿提交；key.properties 含密码，keystore 丢失将无法再升级）
+app/android/app/key.properties
+app/android/app/chat-app-release.keystore
+
 # IDE
 .idea/
 .vscode/

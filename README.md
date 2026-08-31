@@ -66,6 +66,21 @@ dart run build_runner build --delete-conflicting-outputs   # 生成 database.g.d
 flutter run
 ```
 
+### 构建 release 安装包
+
+```bash
+cd app
+flutter build apk --release
+# 产物：build/app/outputs/flutter-apk/app-release.apk
+```
+
+- **包名**：`com.chatapp.android`（`android/app/build.gradle.kts`，发布后不可改）。
+- **签名**：release 用 `android/app/chat-app-release.keystore`（密码在 gitignore 的 `key.properties`）。**务必自行备份 keystore 文件与密码**——丢失后无法对已装设备做覆盖升级。`key.properties` 缺失时自动回退 debug 签名（方便他人 clone 构建）。
+- **改应用名 / 图标**（发布前）：应用名改 `android/app/src/main/AndroidManifest.xml` 的 `android:label`；图标可用 `flutter_launcher_icons`（`flutter pub add --dev flutter_launcher_icons` 后按包内文档配一个 `flutter_launcher_icons.yaml`）或直接替换 `android/app/src/main/res/mipmap-*` 下的 PNG。
+- 真机安装：`adb install build/app/outputs/flutter-apk/app-release.apk`（需先在「设置 → 开发者选项」允许安装未知来源应用）。
+
+### 运行（调试）
+
 - **Android 模拟器**访问宿主机后端，填 `http://10.0.2.2:3000`。
 - **iOS 模拟器**填 `http://localhost:3000`（本项目暂不验证 iOS，需 macOS 环境）。
 - **真机**填电脑的局域网 IP，如 `http://192.168.1.10:3000`（后端需监听 `0.0.0.0`，已默认）。`login_page.dart` 里的默认值是 `http://192.168.1.20:3000`，真机联调时改成自己电脑的 IP。

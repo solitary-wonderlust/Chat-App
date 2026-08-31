@@ -31,4 +31,4 @@
 - 群聊完整能力（改群名 / 增删成员）未实现，未来需要时再添加。
 - 聊天内容明文存储 / 传输（密码哈希）；生产建议走 HTTPS/WSS。
 - 增量拉取游标用「会话内最大 `created_at`」+ `>`，极端同毫秒场景依赖 `id` 幂等兜底。
-- 客户端 release 打包与真机验证尚未完成（需真机 + 签名决策），见 [docs/development-plan.md](docs/development-plan.md) 阶段 4A。
+- 客户端 release 包已可构建（包名 `com.chatapp.android`，正式 keystore 签名），但**真机安装验证尚未完成**；应用名 / 图标仍为占位符待替换，见 [docs/development-plan.md](docs/development-plan.md) 阶段 4A。
