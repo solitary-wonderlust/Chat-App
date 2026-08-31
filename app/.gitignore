@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# 应用名/图标本地定制（不随仓库上传）
+# 源图标与 flutter_launcher_icons 配置仅存在于本机；
+# 已跟踪的 mipmap 图标与 AndroidManifest 变更用 git update-index --skip-worktree 隐藏。
+assets/icon/
+flutter_launcher_icons.yaml
