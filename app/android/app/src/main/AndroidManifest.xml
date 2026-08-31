@@ -1,8 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- release 包必需：联网权限（debug manifest 自带，主 manifest 需显式声明）。
+         应用使用 http 明文（自托管后端），Android 9+ 默认禁明文，故同时放开 usesCleartextTraffic。 -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="chat_app"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
